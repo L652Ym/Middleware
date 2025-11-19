@@ -27,6 +27,7 @@ class PhoenixTracer:
                  enabled: bool = None,
                  host: str = None,
                  port: int = None,
+                 mode: str = None,
                  auto_instrument: bool = True):
         """
         Initialize Phoenix tracer
@@ -35,6 +36,9 @@ class PhoenixTracer:
             enabled: Enable/disable Phoenix tracing (defaults to env PHOENIX_ENABLED)
             host: Phoenix server host (defaults to env PHOENIX_HOST or '127.0.0.1')
             port: Phoenix server port (defaults to env PHOENIX_PORT or 6006)
+            mode: 'external' or 'embedded' (defaults to env PHOENIX_MODE or 'external')
+                  'external': Connect to existing Phoenix server (Windows compatible)
+                  'embedded': Launch Phoenix in-process (Linux/Mac only)
             auto_instrument: Automatically instrument LangChain (default True)
         """
         # Read from environment variables with defaults
@@ -45,6 +49,10 @@ class PhoenixTracer:
         self.host = raw_host.replace("http://", "").replace("https://", "").strip()
 
         self.port = int(port or os.getenv("PHOENIX_PORT", "6006"))
+
+        # Phoenix mode: external (connect to existing) or embedded (launch in-process)
+        self.mode = mode or os.getenv("PHOENIX_MODE", "external").lower()
+
         self.session = None
         self.tracer_provider = None
 
@@ -56,22 +64,39 @@ class PhoenixTracer:
     def _start_phoenix(self):
         """Start Phoenix session and initialize tracing"""
         try:
-            # Launch Phoenix in-process
-            self.session = px.launch_app()
-
-            print(f"\n{'='*60}")
-            print(f"[PHOENIX] Arize Phoenix Started Successfully")
-            print(f"[PHOENIX] Dashboard URL: http://{self.host}:{self.port}")
-            print(f"[PHOENIX] Open the dashboard to view real-time traces")
-            print(f"{'='*60}\n")
+            if self.mode == "embedded":
+                # Embedded mode: Launch Phoenix in-process (may fail on Windows)
+                print(f"\n[PHOENIX] Starting embedded Phoenix server...")
+                self.session = px.launch_app()
+                print(f"[PHOENIX] ✓ Embedded Phoenix started successfully")
+            else:
+                # External mode: Connect to existing Phoenix server
+                print(f"\n[PHOENIX] Connecting to external Phoenix server...")
+                print(f"[PHOENIX] Expecting Phoenix at http://{self.host}:{self.port}")
+                print(f"[PHOENIX] (Start Phoenix separately if not running)")
 
             # Register Phoenix as the OTEL tracer
-            self.tracer_provider = register()
+            endpoint = f"http://{self.host}:{self.port}/v1/traces"
+            self.tracer_provider = register(
+                project_name="qa-agent",
+                endpoint=endpoint
+            )
+
+            print(f"[PHOENIX] ✓ Tracer registered successfully")
+            print(f"[PHOENIX] Dashboard URL: http://{self.host}:{self.port}")
+            print(f"{'='*60}\n")
 
         except Exception as e:
             print(f"\n{'='*60}")
-            print(f"[PHOENIX WARNING] Failed to start Phoenix")
+            print(f"[PHOENIX WARNING] Failed to initialize Phoenix")
             print(f"[PHOENIX WARNING] Error: {str(e)}")
+            if self.mode == "embedded":
+                print(f"[PHOENIX WARNING] Embedded mode failed (Windows compatibility issue)")
+                print(f"[PHOENIX WARNING] Try setting PHOENIX_MODE=external in .env")
+                print(f"[PHOENIX WARNING] And start Phoenix separately: python -m phoenix.server.main")
+            else:
+                print(f"[PHOENIX WARNING] External Phoenix server not reachable")
+                print(f"[PHOENIX WARNING] Start Phoenix: python -m phoenix.server.main serve")
             print(f"[PHOENIX WARNING] Agent will continue without tracing")
             print(f"[PHOENIX WARNING] To disable this warning, set PHOENIX_ENABLED=false in .env")
             print(f"{'='*60}\n")
@@ -127,6 +152,7 @@ _phoenix_tracer: Optional[PhoenixTracer] = None
 def init_phoenix(enabled: bool = None,
                 host: str = None,
                 port: int = None,
+                mode: str = None,
                 auto_instrument: bool = True) -> PhoenixTracer:
     """
     Initialize Phoenix tracing (singleton pattern)
@@ -135,6 +161,7 @@ def init_phoenix(enabled: bool = None,
         enabled: Enable/disable Phoenix tracing
         host: Phoenix server host
         port: Phoenix server port
+        mode: 'external' or 'embedded' Phoenix mode
         auto_instrument: Automatically instrument LangChain
 
     Returns:
@@ -147,6 +174,7 @@ def init_phoenix(enabled: bool = None,
             enabled=enabled,
             host=host,
             port=port,
+            mode=mode,
             auto_instrument=auto_instrument
         )
 

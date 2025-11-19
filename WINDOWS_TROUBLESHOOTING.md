@@ -9,11 +9,44 @@ ERROR: [Errno 11001] getaddrinfo failed
 💥 Phoenix failed to start
 ```
 
-### 快速解决方案
+### 💡 问题原因
 
-#### 方案 1：禁用 Phoenix（推荐）
+这是因为 Phoenix 默认尝试在进程内启动 Web 服务器（Embedded 模式），这在 Windows 上有兼容性问题。
 
-编辑你的 `.env` 文件，将 Phoenix 禁用：
+### ✅ 推荐解决方案：使用 External 模式
+
+#### 方案 1：External 模式（推荐，有追踪）
+
+编辑你的 `.env` 文件：
+
+```env
+# Phoenix 配置
+PHOENIX_ENABLED=true
+PHOENIX_MODE=external  # 关键！改为外部模式
+PHOENIX_HOST=127.0.0.1
+PHOENIX_PORT=6006
+```
+
+**步骤：**
+
+1. **启动 Phoenix 服务器**（打开第一个终端）：
+   ```bash
+   python -m phoenix.server.main serve
+   ```
+
+2. **运行 Agent**（打开第二个终端）：
+   ```bash
+   python main.py
+   ```
+
+3. **查看追踪**：
+   浏览器打开 http://localhost:6006
+
+这样就和你之前的代码一样工作了！
+
+#### 方案 2：完全禁用 Phoenix（最简单，无追踪）
+
+编辑你的 `.env` 文件：
 
 ```env
 PHOENIX_ENABLED=false
@@ -26,21 +59,6 @@ python main.py
 ```
 
 Agent 会正常工作，只是没有追踪功能。
-
-#### 方案 2：修复 Phoenix 配置
-
-如果你的 `.env` 文件中 `PHOENIX_HOST` 包含 `http://`，请修改为：
-
-**错误配置：**
-```env
-PHOENIX_HOST=http://localhost
-```
-
-**正确配置：**
-```env
-PHOENIX_HOST=127.0.0.1
-PHOENIX_PORT=6006
-```
 
 ### 验证修复
 
