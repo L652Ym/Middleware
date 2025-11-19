@@ -33,13 +33,17 @@ class PhoenixTracer:
 
         Args:
             enabled: Enable/disable Phoenix tracing (defaults to env PHOENIX_ENABLED)
-            host: Phoenix server host (defaults to env PHOENIX_HOST or 'http://localhost')
+            host: Phoenix server host (defaults to env PHOENIX_HOST or '127.0.0.1')
             port: Phoenix server port (defaults to env PHOENIX_PORT or 6006)
             auto_instrument: Automatically instrument LangChain (default True)
         """
         # Read from environment variables with defaults
         self.enabled = enabled if enabled is not None else os.getenv("PHOENIX_ENABLED", "true").lower() == "true"
-        self.host = host or os.getenv("PHOENIX_HOST", "http://localhost")
+
+        # Clean up host (remove http:// or https:// if present)
+        raw_host = host or os.getenv("PHOENIX_HOST", "127.0.0.1")
+        self.host = raw_host.replace("http://", "").replace("https://", "").strip()
+
         self.port = int(port or os.getenv("PHOENIX_PORT", "6006"))
         self.session = None
         self.tracer_provider = None
@@ -57,7 +61,7 @@ class PhoenixTracer:
 
             print(f"\n{'='*60}")
             print(f"[PHOENIX] Arize Phoenix Started Successfully")
-            print(f"[PHOENIX] Dashboard URL: {self.host}:{self.port}")
+            print(f"[PHOENIX] Dashboard URL: http://{self.host}:{self.port}")
             print(f"[PHOENIX] Open the dashboard to view real-time traces")
             print(f"{'='*60}\n")
 
@@ -65,8 +69,12 @@ class PhoenixTracer:
             self.tracer_provider = register()
 
         except Exception as e:
-            print(f"\n[PHOENIX WARNING] Failed to start Phoenix: {str(e)}")
-            print(f"[PHOENIX WARNING] Continuing without tracing...\n")
+            print(f"\n{'='*60}")
+            print(f"[PHOENIX WARNING] Failed to start Phoenix")
+            print(f"[PHOENIX WARNING] Error: {str(e)}")
+            print(f"[PHOENIX WARNING] Agent will continue without tracing")
+            print(f"[PHOENIX WARNING] To disable this warning, set PHOENIX_ENABLED=false in .env")
+            print(f"{'='*60}\n")
             self.enabled = False
 
     def _instrument_langchain(self):
@@ -95,7 +103,7 @@ class PhoenixTracer:
     def get_dashboard_url(self) -> str:
         """Get the Phoenix dashboard URL"""
         if self.enabled and self.session:
-            return f"{self.host}:{self.port}"
+            return f"http://{self.host}:{self.port}"
         return ""
 
     def is_enabled(self) -> bool:

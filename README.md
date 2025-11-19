@@ -2,6 +2,8 @@
 
 A streamlined question-answering agent built with **LangGraph**, integrated with **middleware** for production-ready control and **Arize Phoenix** for real-time tracing.
 
+> **📝 Windows 用户注意**: 如果遇到 Phoenix 启动错误，请在 `.env` 文件中设置 `PHOENIX_ENABLED=false`。参见 [WINDOWS_TROUBLESHOOTING.md](WINDOWS_TROUBLESHOOTING.md)
+
 ## ✨ Features
 
 - 🤖 **LangGraph-based QA Agent**: Stateful, multi-turn conversations
@@ -22,6 +24,7 @@ cd Middleware
 
 # Install dependencies
 uv sync
+# Or use pip: pip install -r requirements.txt
 ```
 
 ### 2. Configuration
@@ -32,6 +35,9 @@ cp .env.example .env
 
 # Edit .env and add your DeepSeek API key
 # DEEPSEEK_API_KEY=sk-your-key-here
+
+# Windows users: Disable Phoenix if you encounter startup errors
+# PHOENIX_ENABLED=false
 ```
 
 ### 3. Run
@@ -155,7 +161,7 @@ DEEPSEEK_CHAT_MODEL=deepseek-chat
 
 # Phoenix Tracing (Optional)
 PHOENIX_ENABLED=true
-PHOENIX_HOST=http://localhost
+PHOENIX_HOST=127.0.0.1
 PHOENIX_PORT=6006
 ```
 
@@ -209,11 +215,17 @@ agent = QAAgent(model_provider="openai")
 ```
 → Check `DEEPSEEK_API_KEY` in `.env`
 
+**Phoenix Startup Error (Windows)**
+```
+ERROR: [Errno 11001] getaddrinfo failed
+```
+→ Set `PHOENIX_ENABLED=false` in `.env`. See [WINDOWS_TROUBLESHOOTING.md](WINDOWS_TROUBLESHOOTING.md)
+
 **Phoenix Won't Start**
 ```
 [PHOENIX WARNING] Failed to start Phoenix
 ```
-→ Phoenix is optional. Check if port 6006 is available or disable with `PHOENIX_ENABLED=false`
+→ Phoenix is optional. Disable with `PHOENIX_ENABLED=false` in `.env`
 
 **Budget Exceeded**
 ```
