@@ -1,0 +1,156 @@
+"""
+Arize Phoenix Integration for LangChain Middleware
+
+This module provides Phoenix tracing and monitoring capabilities for LangChain applications.
+Phoenix allows you to track, visualize, and debug LLM application behavior in real-time.
+"""
+
+import os
+from typing import Optional
+import phoenix as px
+from phoenix.otel import register
+from openinference.instrumentation.langchain import LangChainInstrumentor
+
+
+class PhoenixTracer:
+    """
+    Manages Arize Phoenix tracing for LangChain applications.
+
+    Features:
+    - Automatic tracing of LangChain model calls
+    - Real-time monitoring dashboard
+    - Performance metrics and analytics
+    - Request/response logging
+    """
+
+    def __init__(self,
+                 enabled: bool = None,
+                 host: str = None,
+                 port: int = None,
+                 auto_instrument: bool = True):
+        """
+        Initialize Phoenix tracer
+
+        Args:
+            enabled: Enable/disable Phoenix tracing (defaults to env PHOENIX_ENABLED)
+            host: Phoenix server host (defaults to env PHOENIX_HOST or 'http://localhost')
+            port: Phoenix server port (defaults to env PHOENIX_PORT or 6006)
+            auto_instrument: Automatically instrument LangChain (default True)
+        """
+        # Read from environment variables with defaults
+        self.enabled = enabled if enabled is not None else os.getenv("PHOENIX_ENABLED", "true").lower() == "true"
+        self.host = host or os.getenv("PHOENIX_HOST", "http://localhost")
+        self.port = int(port or os.getenv("PHOENIX_PORT", "6006"))
+        self.session = None
+        self.tracer_provider = None
+
+        if self.enabled:
+            self._start_phoenix()
+            if auto_instrument:
+                self._instrument_langchain()
+
+    def _start_phoenix(self):
+        """Start Phoenix session and initialize tracing"""
+        try:
+            # Launch Phoenix in-process
+            self.session = px.launch_app()
+
+            print(f"\n{'='*60}")
+            print(f"[PHOENIX] Arize Phoenix Started Successfully")
+            print(f"[PHOENIX] Dashboard URL: {self.host}:{self.port}")
+            print(f"[PHOENIX] Open the dashboard to view real-time traces")
+            print(f"{'='*60}\n")
+
+            # Register Phoenix as the OTEL tracer
+            self.tracer_provider = register()
+
+        except Exception as e:
+            print(f"\n[PHOENIX WARNING] Failed to start Phoenix: {str(e)}")
+            print(f"[PHOENIX WARNING] Continuing without tracing...\n")
+            self.enabled = False
+
+    def _instrument_langchain(self):
+        """Instrument LangChain for automatic tracing"""
+        if not self.enabled:
+            return
+
+        try:
+            # Instrument LangChain
+            LangChainInstrumentor().instrument()
+
+            print(f"[PHOENIX] LangChain instrumentation enabled")
+            print(f"[PHOENIX] All LangChain calls will be traced automatically\n")
+
+        except Exception as e:
+            print(f"\n[PHOENIX WARNING] Failed to instrument LangChain: {str(e)}\n")
+
+    def get_dashboard_url(self) -> str:
+        """Get the Phoenix dashboard URL"""
+        if self.enabled and self.session:
+            return f"{self.host}:{self.port}"
+        return ""
+
+    def is_enabled(self) -> bool:
+        """Check if Phoenix tracing is enabled"""
+        return self.enabled
+
+    def stop(self):
+        """Stop Phoenix session"""
+        if self.session:
+            try:
+                # Phoenix sessions are managed automatically
+                print("\n[PHOENIX] Session ended")
+            except Exception as e:
+                print(f"\n[PHOENIX WARNING] Error stopping session: {str(e)}")
+
+
+# Global Phoenix tracer instance
+_phoenix_tracer: Optional[PhoenixTracer] = None
+
+
+def init_phoenix(enabled: bool = None,
+                host: str = None,
+                port: int = None,
+                auto_instrument: bool = True) -> PhoenixTracer:
+    """
+    Initialize Phoenix tracing (singleton pattern)
+
+    Args:
+        enabled: Enable/disable Phoenix tracing
+        host: Phoenix server host
+        port: Phoenix server port
+        auto_instrument: Automatically instrument LangChain
+
+    Returns:
+        PhoenixTracer instance
+    """
+    global _phoenix_tracer
+
+    if _phoenix_tracer is None:
+        _phoenix_tracer = PhoenixTracer(
+            enabled=enabled,
+            host=host,
+            port=port,
+            auto_instrument=auto_instrument
+        )
+
+    return _phoenix_tracer
+
+
+def get_phoenix_tracer() -> Optional[PhoenixTracer]:
+    """
+    Get the global Phoenix tracer instance
+
+    Returns:
+        PhoenixTracer instance or None if not initialized
+    """
+    return _phoenix_tracer
+
+
+def stop_phoenix():
+    """Stop the global Phoenix tracer"""
+    global _phoenix_tracer
+
+    if _phoenix_tracer:
+        _phoenix_tracer.stop()
+        _phoenix_tracer = None

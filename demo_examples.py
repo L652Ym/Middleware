@@ -18,6 +18,7 @@ from middleware import (
     CachingMiddleware,
     UserContext,
 )
+from phoenix_tracer import init_phoenix, stop_phoenix
 
 # Load environment variables
 load_dotenv()
@@ -25,22 +26,31 @@ load_dotenv()
 
 class MiddlewareDemo:
     """Base class for running middleware demonstrations"""
-    
-    def __init__(self, use_openai: bool = True):
+
+    def __init__(self, model_provider: str = "deepseek"):
         """
-        Initialize the demo with either OpenAI or Gemini
-        
+        Initialize the demo with specified model provider
+
         Args:
-            use_openai: If True, use OpenAI; otherwise use Gemini
+            model_provider: One of "deepseek", "openai", or "gemini"
         """
-        if use_openai:
+        if model_provider == "deepseek":
+            # DeepSeek使用OpenAI兼容的API
+            self.model = ChatOpenAI(
+                model=os.getenv("DEEPSEEK_CHAT_MODEL", "deepseek-chat"),
+                temperature=0.7,
+                openai_api_key=os.getenv("DEEPSEEK_API_KEY"),
+                openai_api_base=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+            )
+            print(f"\nUsing Model: DeepSeek Chat")
+        elif model_provider == "openai":
             self.model = ChatOpenAI(
                 model="gpt-3.5-turbo",
                 temperature=0.7,
                 openai_api_key=os.getenv("OPENAI_API_KEY")
             )
             print(f"\nUsing Model: OpenAI GPT-3.5-Turbo")
-        else:
+        elif model_provider == "gemini":
             from langchain_google_genai import ChatGoogleGenerativeAI
             self.model = ChatGoogleGenerativeAI(
                 model="gemini-1.5-flash",
@@ -48,6 +58,8 @@ class MiddlewareDemo:
                 google_api_key=os.getenv("GEMINI_API_KEY")
             )
             print(f"\nUsing Model: Google Gemini 1.5 Flash")
+        else:
+            raise ValueError(f"Unknown model provider: {model_provider}. Use 'deepseek', 'openai', or 'gemini'.")
     
     def simulate_call_with_middleware(self, messages, middleware_list):
         """
@@ -106,7 +118,7 @@ def demo_1_logging_middleware():
     print("\nUse Case: Track all agent interactions for debugging and audit trails")
     print("Benefit: Complete visibility into agent decision-making process\n")
     
-    demo = MiddlewareDemo(use_openai=True)
+    demo = MiddlewareDemo(model_provider="deepseek")
     logging_mw = LoggingMiddleware(verbose=True)
     
     messages = [
@@ -135,8 +147,8 @@ def demo_2_token_budget():
     print("\nUse Case: Prevent excessive API costs by enforcing token limits")
     print("Benefit: Predictable costs and protection against budget overruns\n")
     
-    demo = MiddlewareDemo(use_openai=True)
-    
+    demo = MiddlewareDemo(model_provider="deepseek")
+
     # Set a low limit to demonstrate budget enforcement
     budget_mw = TokenBudgetMiddleware(max_tokens=500, max_requests=3)
     
@@ -177,7 +189,7 @@ def demo_3_context_summarization():
     print("\nUse Case: Manage long conversation histories by automatic summarization")
     print("Benefit: Maintain context without hitting token limits\n")
     
-    demo = MiddlewareDemo(use_openai=True)
+    demo = MiddlewareDemo(model_provider="deepseek")
     summarization_mw = ContextSummarizationMiddleware(max_messages=5)
     
     # Simulate a long conversation
@@ -216,7 +228,7 @@ def demo_4_security_filter():
     print("\nUse Case: Protect sensitive information (PII) from being sent to the model")
     print("Benefit: Compliance with privacy regulations (GDPR, HIPAA, etc.)\n")
     
-    demo = MiddlewareDemo(use_openai=True)
+    demo = MiddlewareDemo(model_provider="deepseek")
     security_mw = SecurityFilterMiddleware()
     
     # Message containing sensitive information
@@ -254,8 +266,8 @@ def demo_5_expertise_based():
     print("\nUse Case: Adjust agent behavior based on user expertise level")
     print("Benefit: Personalized experience - experts get advanced features, beginners get guidance\n")
     
-    demo = MiddlewareDemo(use_openai=True)
-    
+    demo = MiddlewareDemo(model_provider="deepseek")
+
     # Test with beginner user
     print("\n--- Scenario 1: Beginner User ---")
     beginner_context = UserContext(user_id="user_001", expertise_level="beginner")
@@ -294,8 +306,8 @@ def demo_6_middleware_stack():
     print("\nUse Case: Combine multiple middleware for production-grade agent")
     print("Benefit: Layered controls - logging, security, cost control, personalization all at once\n")
     
-    demo = MiddlewareDemo(use_openai=True)
-    
+    demo = MiddlewareDemo(model_provider="deepseek")
+
     # Create middleware stack
     context = UserContext(user_id="user_003", expertise_level="expert")
     
@@ -401,10 +413,17 @@ def demo_7_comparison_old_vs_new():
 
 def main():
     """Run all demo examples"""
+    # Initialize Phoenix tracing
+    phoenix = init_phoenix()
+
     print("\n" + "="*80)
     print("LANGCHAIN V1.0 MIDDLEWARE DEMONSTRATIONS")
     print("Context Control for Production AI Agents")
     print("="*80)
+
+    if phoenix.is_enabled():
+        print(f"\n[MONITORING] Phoenix Dashboard: {phoenix.get_dashboard_url()}")
+        print("[MONITORING] All LangChain calls are being traced\n")
     
     demos = [
         ("Logging Middleware", demo_1_logging_middleware),
@@ -450,6 +469,13 @@ def main():
         except Exception as e:
             print(f"\nError running demo: {str(e)}")
 
+    # Cleanup Phoenix on exit
+    stop_phoenix()
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nExiting...")
+        stop_phoenix()
