@@ -1,26 +1,11 @@
+#!/usr/bin/env python3
 """
-LangChain v1.0 Middleware Solution - Main Entry Point
+LangGraph QA Agent - Main Entry Point
 
-This demo showcases the middleware architecture introduced in LangChain v1.0
-for systematic AI agent context control.
+Simple entry point for the QA Agent with middleware and Phoenix tracing.
 """
 
-from demo_examples import main as run_demos
-
-
-def main():
-    """Main entry point for the middleware demonstration"""
-    print("\nLangChain v1.0 Middleware Solution")
-    print("Systematic Context Control for AI Agents\n")
-    
-    try:
-        run_demos()
-    except KeyboardInterrupt:
-        print("\n\nProgram interrupted. Goodbye!")
-    except Exception as e:
-        print(f"\nError: {str(e)}")
-        print("Please ensure your .env file contains valid API keys.")
-
+from run_agent import main
 
 if __name__ == "__main__":
     main()
