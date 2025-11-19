@@ -1,16 +1,16 @@
 [project]
 name = "langchain-middleware-solution"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "LangGraph Agent with Middleware and Phoenix Tracing"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "langchain>=1.0.3",
-    "langchain-google-genai>=3.0.0",
     "langchain-openai>=1.0.1",
     "python-dotenv>=1.2.1",
-    "streamlit>=1.51.0",
     "openai>=1.54.0",
+    "langgraph>=1.0.2",
+    "langgraph-checkpoint>=3.0.0",
     "arize-phoenix>=5.0.0",
     "arize-phoenix-otel>=0.7.0",
     "openinference-instrumentation-langchain>=0.1.28",

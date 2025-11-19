@@ -70,19 +70,27 @@ class PhoenixTracer:
             self.enabled = False
 
     def _instrument_langchain(self):
-        """Instrument LangChain for automatic tracing"""
+        """Instrument LangChain and LangGraph for automatic tracing"""
         if not self.enabled:
             return
 
         try:
             # Instrument LangChain
             LangChainInstrumentor().instrument()
+            print(f"[PHOENIX] ✓ LangChain instrumentation enabled")
 
-            print(f"[PHOENIX] LangChain instrumentation enabled")
-            print(f"[PHOENIX] All LangChain calls will be traced automatically\n")
+            # Try to instrument LangGraph if available
+            try:
+                # LangGraph 追踪目前通过 LangChain instrumentation 自动支持
+                # 但我们可以添加额外的日志
+                print(f"[PHOENIX] ✓ LangGraph will be traced via LangChain instrumentation")
+            except Exception as e:
+                print(f"[PHOENIX] Note: {str(e)}")
+
+            print(f"[PHOENIX] All LangChain/LangGraph calls will be traced automatically\n")
 
         except Exception as e:
-            print(f"\n[PHOENIX WARNING] Failed to instrument LangChain: {str(e)}\n")
+            print(f"\n[PHOENIX WARNING] Failed to instrument: {str(e)}\n")
 
     def get_dashboard_url(self) -> str:
         """Get the Phoenix dashboard URL"""
